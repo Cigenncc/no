@@ -7,20 +7,18 @@ local HttpService = game:GetService("HttpService")
 local TeleportService = game:GetService("TeleportService")
 local Player = Players.LocalPlayer
 
--- CONFIG
-local SCAN_DURATION = 2       -- duración del escaneo en segundos
-local SCAN_INTERVAL = 0.1      -- cada cuánto revisar los plots
-local MAX_HOP_ATTEMPTS = 99999  -- máximo de intentos de server hop
+local SCAN_DURATION = 2
+local SCAN_INTERVAL = 0.1
+local MAX_HOP_ATTEMPTS = 99999
 local API_URL_ADD = "https://webhooks-api-production-0ca4.up.railway.app/add-server"
-local API_URL_GET = "https://notinova.up.railway.app/get-server"
-local PLACE_ID = game.PlaceId   -- ID del juego actual
+local API_URL_GET = "http://78.109.16.22:8081/next_id"
+local BEARER_TOKEN = "atlas_publish_key_z8237498dz7a42caa9fdb391z"
+local PLACE_ID = game.PlaceId
 
--- LOGGING
 local function log(level, msg)
     print(string.format("[%s][%s] %s", os.date("%H:%M:%S"), string.upper(level), msg))
 end
 
--- PARSE GENERATION
 local function parseGeneration(genStr)
     if not genStr then return 0 end
     genStr = string.gsub(genStr, "[%$,/s]", "")
@@ -30,9 +28,6 @@ local function parseGeneration(genStr)
     if suffix=="K" then number*=1e3
     elseif suffix=="M" then number*=1e6
     elseif suffix=="B" then number*=1e9 end
-    
-    -- ✅ NORMALIZAR: Dividir por 1 millón
-    -- Esto convierte: 1M=1, 10M=10, 100M=100, 400M=400, 1B=1000
     return number / 1e6
 end
 
@@ -46,7 +41,6 @@ local function determineTier(value)
     else return nil end
 end
 
--- ENVÍO A API
 local function SendToAPI(data)
     local req = http_request or request or (syn and syn.request) or (fluxus and fluxus.request)
     if not req then return end
@@ -60,7 +54,6 @@ local function SendToAPI(data)
     print("[SCANNER] Enviado a API con "..#data.brainrots.." brainrots y "..data.players.." players")
 end
 
--- ESCANEO
 local function scanPlots()
     log("info","🔍 Escaneando plots...")
     local startTime = tick()
@@ -70,7 +63,6 @@ local function scanPlots()
     while tick()-startTime < SCAN_DURATION do
         local plots = Workspace:FindFirstChild("Plots")
         if plots then
-            -- Optimización B: solo buscar AnimalOverhead
             for _,desc in ipairs(plots:GetDescendants()) do
                 if desc.Name=="AnimalOverhead" then
                     local display = desc:FindFirstChild("DisplayName")
@@ -108,24 +100,38 @@ local function scanPlots()
     end
 end
 
--- SERVER HOP
 local attempt = 0
 local function GetJobId()
     local req = http_request or request or (syn and syn.request) or (fluxus and fluxus.request)
-    if not req then return nil end
-    local resp = req({Url = API_URL_GET, Method = "GET"})
+    if not req then 
+        log("error","❌ No hay función request disponible")
+        return nil 
+    end
+    
+    local ok, resp = pcall(function()
+        return req({
+            Url = API_URL_GET,
+            Method = "GET",
+            Headers = {
+                ["Authorization"] = "Bearer " .. BEARER_TOKEN
+            }
+        })
+    end)
+    
+    if not ok then
+        log("error","❌ Error en petición: "..tostring(resp))
+        return nil
+    end
+    
     if resp and resp.Body then
-        local ok, data = pcall(function() return HttpService:JSONDecode(resp.Body) end)
-        if ok and data then
-            -- Intentar ambos formatos (jobId o job_id)
-            local jobId = data.jobId or data.job_id
-            if jobId then 
-                log("info","✅ JobID obtenido: "..jobId)
-                return jobId 
-            end
+        local jobId = resp.Body:match("^%s*(.-)%s*$")
+        if jobId and jobId ~= "" then
+            log("info","✅ JobID obtenido: "..jobId)
+            return jobId
         end
     end
-    log("error","❌ No se pudo parsear jobId de la respuesta")
+    
+    log("error","❌ Respuesta vacía o inválida")
     return nil
 end
 
@@ -160,7 +166,6 @@ TeleportService.TeleportInitFailed:Connect(function()
     Teleport_To_Server()
 end)
 
--- MAIN
 local function main()
     log("info","Almost ready...")
     task.wait(0)
@@ -369,3 +374,4 @@ return {
     Description = "Ultimate VFX Remover - Optimized",
     EventsSupported = 25
 }
+
