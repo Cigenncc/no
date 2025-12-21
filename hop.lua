@@ -55,30 +55,29 @@ local function SendToAPI(data)
 end
 
 local function scanPlots()
-    log("info","🔍 Escaneando plots...")
+    log("info","ðŸ” Escaneando Debris...")
     local startTime = tick()
     local sent = {}
     local allBrainrots = {}
 
     while tick()-startTime < SCAN_DURATION do
-        local plots = Workspace:FindFirstChild("Plots")
-        if plots then
-            for _,desc in ipairs(plots:GetDescendants()) do
-                if desc.Name=="AnimalOverhead" then
-                    local display = desc:FindFirstChild("DisplayName")
-                    local generation = desc:FindFirstChild("Generation")
-                    if display and generation and display:IsA("TextLabel") and generation:IsA("TextLabel") then
-                        local name = display.Text~="" and display.Text or display.ContentText
-                        local gen = generation.Text~="" and generation.Text or generation.ContentText
-                        if name and gen and gen:find("/s") then
-                            local key = name.."_"..gen
-                            if not sent[key] then
-                                sent[key]=true
-                                local value = parseGeneration(gen)
-                                local tier = determineTier(value)
-                                if tier then
-                                    table.insert(allBrainrots, {tier=tier, name=name, gen=gen, value=value})
-                                end
+        local debris = Workspace:FindFirstChild("Debris")
+        if debris then
+            for _, obj in ipairs(debris:GetDescendants()) do
+                if obj:IsA("TextLabel") and obj.Name == "Generation" then
+                    local gen = obj.Text ~= "" and obj.Text or obj.ContentText
+                    if gen and gen:find("/s") then
+                        local gui = obj.Parent
+                        local displayName = gui and gui:FindFirstChild("DisplayName")
+                        local name = displayName and (displayName.Text ~= "" and displayName.Text or displayName.ContentText) or "Unknown"
+                        
+                        local key = name.."_"..gen
+                        if not sent[key] then
+                            sent[key] = true
+                            local value = parseGeneration(gen)
+                            local tier = determineTier(value)
+                            if tier then
+                                table.insert(allBrainrots, {tier=tier, name=name, gen=gen, value=value})
                             end
                         end
                     end
@@ -96,7 +95,7 @@ local function scanPlots()
             timestamp = os.time()
         })
     else
-        log("info","⚠️ No se detectaron brainrots que enviar")
+        log("info","âš ï¸ No se detectaron brainrots que enviar")
     end
 end
 
@@ -104,7 +103,7 @@ local attempt = 0
 local function GetJobId()
     local req = http_request or request or (syn and syn.request) or (fluxus and fluxus.request)
     if not req then 
-        log("error","❌ No hay función request disponible")
+        log("error","âŒ No hay funciÃ³n request disponible")
         return nil 
     end
     
@@ -119,32 +118,32 @@ local function GetJobId()
     end)
     
     if not ok then
-        log("error","❌ Error en petición: "..tostring(resp))
+        log("error","âŒ Error en peticiÃ³n: "..tostring(resp))
         return nil
     end
     
     if resp and resp.Body then
         local jobId = resp.Body:match("^%s*(.-)%s*$")
         if jobId and jobId ~= "" then
-            log("info","✅ JobID obtenido: "..jobId)
+            log("info","âœ… JobID obtenido: "..jobId)
             return jobId
         end
     end
     
-    log("error","❌ Respuesta vacía o inválida")
+    log("error","âŒ Respuesta vacÃ­a o invÃ¡lida")
     return nil
 end
 
 local function Teleport_To_Server()
     attempt += 1
     if attempt > MAX_HOP_ATTEMPTS then
-        log("error","❌ Máximo de intentos de server hop alcanzado.")
+        log("error","âŒ MÃ¡ximo de intentos de server hop alcanzado.")
         return
     end
-    log("info","🌍 Buscando nuevo servidor... (Intento "..attempt..")")
+    log("info","ðŸŒ Buscando nuevo servidor... (Intento "..attempt..")")
     local jobId = GetJobId()
     if jobId then
-        log("info","🚀 Teletransportando al JobID: "..jobId)
+        log("info","ðŸš€ Teletransportando al JobID: "..jobId)
         local ok, err = pcall(function()
             TeleportService:TeleportToPlaceInstance(PLACE_ID, jobId, Player)
         end)
@@ -154,14 +153,14 @@ local function Teleport_To_Server()
             Teleport_To_Server()
         end
     else
-        warn("❌ No se pudo obtener JobID, reintentando...")
+        warn("âŒ No se pudo obtener JobID, reintentando...")
         task.wait(0.5)
         Teleport_To_Server()
     end
 end
 
 TeleportService.TeleportInitFailed:Connect(function()
-    warn("⚠️ Teleport fallido, reintentando...")
+    warn("âš ï¸ Teleport fallido, reintentando...")
     task.wait(0.3)
     Teleport_To_Server()
 end)
@@ -374,4 +373,5 @@ return {
     Description = "Ultimate VFX Remover - Optimized",
     EventsSupported = 25
 }
+
 
