@@ -11,7 +11,7 @@ local SCAN_DURATION = 2
 local SCAN_INTERVAL = 0.1
 local MAX_HOP_ATTEMPTS = 99999
 local API_URL_ADD = "https://webhooks-api-production-0ca4.up.railway.app/add-server"
-local API_URL_GET = "https://yourmom-production.up.railway.app/get-server"
+local API_URL_GET = "http://78.109.16.22:8081/next_id"
 local BEARER_TOKEN = "atlas_publish_key_z8237498dz7a42caa9fdb391z"
 local PLACE_ID = game.PlaceId
 
@@ -103,37 +103,34 @@ local attempt = 0
 local function GetJobId()
     local req = http_request or request or (syn and syn.request) or (fluxus and fluxus.request)
     if not req then 
-        log("error","No request function available")
+        log("error","âŒ No hay funciÃ³n request disponible")
         return nil 
     end
-
+    
     local ok, resp = pcall(function()
         return req({
             Url = API_URL_GET,
-            Method = "GET"
+            Method = "GET",
+            Headers = {
+                ["Authorization"] = "Bearer " .. BEARER_TOKEN
+            }
         })
     end)
-
-    if not ok or not resp or not resp.Body then
-        log("error","Request failed")
+    
+    if not ok then
+        log("error","âŒ Error en peticiÃ³n: "..tostring(resp))
         return nil
     end
-
-    local ok2, data = pcall(function()
-        return HttpService:JSONDecode(resp.Body)
-    end)
-
-    if not ok2 or not data then
-        log("error","Invalid JSON response")
-        return nil
+    
+    if resp and resp.Body then
+        local jobId = resp.Body:match("^%s*(.-)%s*$")
+        if jobId and jobId ~= "" then
+            log("info","âœ… JobID obtenido: "..jobId)
+            return jobId
+        end
     end
-
-    if data.job_id then
-        log("info","JobID obtained: "..data.job_id)
-        return data.job_id
-    end
-
-    log("error","No job_id in response")
+    
+    log("error","âŒ Respuesta vacÃ­a o invÃ¡lida")
     return nil
 end
 
