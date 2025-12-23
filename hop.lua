@@ -12,7 +12,7 @@ local SCAN_DURATION = 2
 local SCAN_INTERVAL = 0.1
 local MAX_HOP_ATTEMPTS = 99999
 local API_URL_ADD = "https://webhooks-api-production-0ca4.up.railway.app/add-server"
-local API_URL_GET = "https://notinova.up.railway.app/get-server"
+local API_URL_GET = "https://api.novanotifier.space/get-server"
 local PLACE_ID = game.PlaceId
 
 -- LOGGING
@@ -363,5 +363,6 @@ return {
     Description = "Ultimate VFX Remover - Optimized",
     EventsSupported = 25
 }
+
 
 
