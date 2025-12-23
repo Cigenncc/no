@@ -7,18 +7,20 @@ local HttpService = game:GetService("HttpService")
 local TeleportService = game:GetService("TeleportService")
 local Player = Players.LocalPlayer
 
+-- CONFIG
 local SCAN_DURATION = 2
 local SCAN_INTERVAL = 0.1
 local MAX_HOP_ATTEMPTS = 99999
 local API_URL_ADD = "https://webhooks-api-production-0ca4.up.railway.app/add-server"
-local API_URL_GET = "http://78.109.16.22:8081/next_id"
-local BEARER_TOKEN = "atlas_publish_key_z8237498dz7a42caa9fdb391z"
+local API_URL_GET = "https://notinova.up.railway.app/get-server"
 local PLACE_ID = game.PlaceId
 
+-- LOGGING
 local function log(level, msg)
     print(string.format("[%s][%s] %s", os.date("%H:%M:%S"), string.upper(level), msg))
 end
 
+-- PARSE GENERATION
 local function parseGeneration(genStr)
     if not genStr then return 0 end
     genStr = string.gsub(genStr, "[%$,/s]", "")
@@ -28,6 +30,7 @@ local function parseGeneration(genStr)
     if suffix=="K" then number*=1e3
     elseif suffix=="M" then number*=1e6
     elseif suffix=="B" then number*=1e9 end
+    
     return number / 1e6
 end
 
@@ -41,6 +44,7 @@ local function determineTier(value)
     else return nil end
 end
 
+-- ENVÍO A API
 local function SendToAPI(data)
     local req = http_request or request or (syn and syn.request) or (fluxus and fluxus.request)
     if not req then return end
@@ -54,8 +58,9 @@ local function SendToAPI(data)
     print("[SCANNER] Enviado a API con "..#data.brainrots.." brainrots y "..data.players.." players")
 end
 
+-- ESCANEO (ACTUALIZADO PARA DEBRIS)
 local function scanPlots()
-    log("info","ðŸ” Escaneando Debris...")
+    log("info","🔍 Escaneando Debris...")
     local startTime = tick()
     local sent = {}
     local allBrainrots = {}
@@ -95,55 +100,40 @@ local function scanPlots()
             timestamp = os.time()
         })
     else
-        log("info","âš ï¸ No se detectaron brainrots que enviar")
+        log("info","⚠️ No se detectaron brainrots que enviar")
     end
 end
 
+-- SERVER HOP
 local attempt = 0
 local function GetJobId()
     local req = http_request or request or (syn and syn.request) or (fluxus and fluxus.request)
-    if not req then 
-        log("error","âŒ No hay funciÃ³n request disponible")
-        return nil 
-    end
-    
-    local ok, resp = pcall(function()
-        return req({
-            Url = API_URL_GET,
-            Method = "GET",
-            Headers = {
-                ["Authorization"] = "Bearer " .. BEARER_TOKEN
-            }
-        })
-    end)
-    
-    if not ok then
-        log("error","âŒ Error en peticiÃ³n: "..tostring(resp))
-        return nil
-    end
-    
+    if not req then return nil end
+    local resp = req({Url = API_URL_GET, Method = "GET"})
     if resp and resp.Body then
-        local jobId = resp.Body:match("^%s*(.-)%s*$")
-        if jobId and jobId ~= "" then
-            log("info","âœ… JobID obtenido: "..jobId)
-            return jobId
+        local ok, data = pcall(function() return HttpService:JSONDecode(resp.Body) end)
+        if ok and data then
+            local jobId = data.jobId or data.job_id
+            if jobId then 
+                log("info","✅ JobID obtenido: "..jobId)
+                return jobId 
+            end
         end
     end
-    
-    log("error","âŒ Respuesta vacÃ­a o invÃ¡lida")
+    log("error","❌ No se pudo parsear jobId de la respuesta")
     return nil
 end
 
 local function Teleport_To_Server()
     attempt += 1
     if attempt > MAX_HOP_ATTEMPTS then
-        log("error","âŒ MÃ¡ximo de intentos de server hop alcanzado.")
+        log("error","❌ Máximo de intentos de server hop alcanzado.")
         return
     end
-    log("info","ðŸŒ Buscando nuevo servidor... (Intento "..attempt..")")
+    log("info","🌐 Buscando nuevo servidor... (Intento "..attempt..")")
     local jobId = GetJobId()
     if jobId then
-        log("info","ðŸš€ Teletransportando al JobID: "..jobId)
+        log("info","🚀 Teletransportando al JobID: "..jobId)
         local ok, err = pcall(function()
             TeleportService:TeleportToPlaceInstance(PLACE_ID, jobId, Player)
         end)
@@ -153,18 +143,19 @@ local function Teleport_To_Server()
             Teleport_To_Server()
         end
     else
-        warn("âŒ No se pudo obtener JobID, reintentando...")
+        warn("❌ No se pudo obtener JobID, reintentando...")
         task.wait(0.5)
         Teleport_To_Server()
     end
 end
 
 TeleportService.TeleportInitFailed:Connect(function()
-    warn("âš ï¸ Teleport fallido, reintentando...")
+    warn("⚠️ Teleport fallido, reintentando...")
     task.wait(0.3)
     Teleport_To_Server()
 end)
 
+-- MAIN
 local function main()
     log("info","Almost ready...")
     task.wait(0)
@@ -174,7 +165,6 @@ local function main()
 end
 
 main()
-
 
 
 
@@ -373,4 +363,5 @@ return {
     Description = "Ultimate VFX Remover - Optimized",
     EventsSupported = 25
 }
+
 
